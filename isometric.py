@@ -1,7 +1,6 @@
 import tkinter as tk
-import numpy as np
-from noise import pnoise2
 from PIL import Image, ImageTk
+from map_generation import MapGeneration
 
 class TerrainMapApp:
     def __init__(self, root, size=20, tile_size=32):
@@ -9,13 +8,6 @@ class TerrainMapApp:
         self.tile_size = tile_size
         self.root = root
         self.root.title("ASCII Terrain Map with Controllable Character")
-
-        # Cache images to avoid redundant loading
-        self.water_image = ImageTk.PhotoImage(Image.open("water.png").resize((tile_size, tile_size)))
-        self.plains_image = ImageTk.PhotoImage(Image.open("plains.png").resize((tile_size, tile_size)))
-        self.hills_image = ImageTk.PhotoImage(Image.open("hills.png").resize((tile_size, tile_size)))
-        self.mountains_image = ImageTk.PhotoImage(Image.open("mountains.png").resize((tile_size, tile_size)))
-        self.high_peaks_image = ImageTk.PhotoImage(Image.open("high_peaks.png").resize((tile_size, tile_size)))
 
         # Load character sprite sheet and extract individual frames
         self.character_sprites = self.load_character_sprites("character_spritesheet.png", 24, 32)
@@ -33,8 +25,9 @@ class TerrainMapApp:
         self.canvas.pack()
 
         # Generate the terrain and ASCII map
-        self.terrain = self.generate_perlin_noise(size)
-        self.ascii_map = self.generate_ascii_map(size, self.terrain)
+        generated_map = MapGeneration(size=50)
+        self.terrain = generated_map.generate_perlin_noise()
+        self.ascii_map = generated_map.generate_ascii_map(self.terrain)
 
         # Draw the initial map with the character
         self.draw_map()
@@ -44,7 +37,6 @@ class TerrainMapApp:
         self.root.bind('<Down>', self.move_down)
         self.root.bind('<Left>', self.move_left)
         self.root.bind('<Right>', self.move_right)
-        # self.root.bind('<KeyRelease>', self.stop_animation())
         
     def load_character_sprites(self, sprite_sheet_path, sprite_width, sprite_height):
         """
@@ -71,53 +63,6 @@ class TerrainMapApp:
                 sprites[direction].append(sprite)
 
         return sprites
-
-    def generate_perlin_noise(self, size, scale=10, octaves=6, persistence=0.5, lacunarity=2.0):
-        """
-        Generate a Perlin noise terrain map with elevation.
-        """
-        terrain = np.zeros((size, size))
-        for i in range(size):
-            for j in range(size):
-                noise_value = pnoise2(i / scale, 
-                                      j / scale, 
-                                      octaves=octaves, 
-                                      persistence=persistence, 
-                                      lacunarity=lacunarity, 
-                                      repeatx=size, 
-                                      repeaty=size, 
-                                      base=0)
-                terrain[i, j] = noise_value #(noise_value + 1) / 2  # Normalize to [0, 1]
-        return terrain
-
-    def elevation_to_image(self, elevation):
-        """
-        Convert elevation value to an ASCII symbol and return the corresponding tag.
-        """
-        if elevation < -0.06:
-            return self.water_image  # Water
-        elif elevation < 0.15:
-            return self.plains_image  # Plains
-        elif elevation < 0.3:
-            return self.hills_image  # Hills
-        elif elevation < 0.4:
-            return self.mountains_image  # Mountains
-        else:
-            return self.high_peaks_image  # High peaks
-
-    def generate_ascii_map(self, size, terrain):
-        """
-        Generate an ASCII map based on the terrain elevation with corresponding tags.
-        """
-        ascii_map = []
-        for i in range(size):
-            row = []
-            for j in range(size):
-                elevation = terrain[i, j]
-                image = self.elevation_to_image(elevation)
-                row.append(image)
-            ascii_map.append(row)
-        return ascii_map
 
     def draw_map(self):
         """
